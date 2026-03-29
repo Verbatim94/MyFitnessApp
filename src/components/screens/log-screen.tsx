@@ -3,6 +3,7 @@
 import { Minus, Plus } from "lucide-react";
 import { Card, CheckboxChip, FieldLabel, Input, ProgressBar, SectionHeader, Textarea } from "@/components/ui";
 import { useAppStore } from "@/lib/store";
+import type { DailyLog } from "@/lib/types";
 import { percentage } from "@/lib/utils";
 
 const numericFields: Array<{
@@ -22,7 +23,8 @@ const numericFields: Array<{
 
 export function LogScreen() {
   const { todayKey, getDailyLog, dispatch, getTargetsForDate, data, getCalendarDay } = useAppStore();
-  const log = getDailyLog(todayKey) ?? {
+  const log: DailyLog = getDailyLog(todayKey) ?? {
+    date: todayKey,
     calories: 0,
     protein: 0,
     carbs: 0,

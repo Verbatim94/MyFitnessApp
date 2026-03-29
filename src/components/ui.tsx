@@ -1,17 +1,17 @@
 "use client";
 
 import { motion } from "framer-motion";
+import type { HTMLMotionProps } from "framer-motion";
 import { Check, ChevronRight } from "lucide-react";
 import type {
   ButtonHTMLAttributes,
-  HTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
   TextareaHTMLAttributes
 } from "react";
 import { cn } from "@/lib/utils";
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+export function Card({ className, ...props }: HTMLMotionProps<"div">) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}

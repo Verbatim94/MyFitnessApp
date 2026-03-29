@@ -85,7 +85,7 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, activeTab: action.tab };
     case "update-calendar-day": {
       const existing = state.data.calendarDays.find((day) => day.date === action.date);
-      const nextDays = existing
+      const nextDays: CalendarDay[] = existing
         ? state.data.calendarDays.map((day) => (day.date === action.date ? { ...day, ...action.patch } : day))
         : [...state.data.calendarDays, { date: action.date, dayType: "rest", ...action.patch }];
       return { ...state, data: { ...state.data, calendarDays: sortByDate(nextDays) } };
@@ -95,10 +95,13 @@ function reducer(state: AppState, action: AppAction): AppState {
       const targetStart = toDateKey(addDays(new Date(`${action.weekStart}T00:00:00`), 7));
       const targetKeys = getWeekDateKeys(targetStart);
       const copied = state.data.calendarDays.filter((day) => sourceKeys.includes(day.date));
-      const mapped = targetKeys.map((date, index) => ({
-        ...(copied[index] ?? { dayType: "rest" as DayType }),
-        date
-      }));
+      const mapped: CalendarDay[] = targetKeys.map((date, index) => {
+        const sourceDay = copied[index];
+        if (sourceDay) {
+          return { ...sourceDay, date };
+        }
+        return { date, dayType: "rest" };
+      });
       const preserved = state.data.calendarDays.filter((day) => !targetKeys.includes(day.date));
       return { ...state, data: { ...state.data, calendarDays: sortByDate([...preserved, ...mapped]) } };
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Dumbbell, Scale, Tape, TrendingUp } from "lucide-react";
+import { Camera, Dumbbell, Ruler, Scale, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ChangeEvent, ComponentType, ReactNode } from "react";
 import {
@@ -112,7 +112,7 @@ export function ProgressScreen() {
 
       <Card>
         <SectionHeader title="Waist trend" caption="A clean read on recomposition direction." />
-        <TrendHeader icon={Tape} label={getProgressTrendLabel(data.progressEntries, "waistCm")} />
+        <TrendHeader icon={Ruler} label={getProgressTrendLabel(data.progressEntries, "waistCm")} />
         <ChartCard>
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={weeklyWeightData}>
