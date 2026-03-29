@@ -1,6 +1,6 @@
 # Phase
 
-Phase is a mobile-first personal fitness operating system built as a local-first MVP with Next.js, TypeScript, Tailwind CSS, Framer Motion, and Recharts.
+Phase is a mobile-first personal fitness operating system built as a local-first MVP with Next.js, TypeScript, Tailwind CSS, Framer Motion, Recharts, and an optional Supabase sync layer.
 
 It is designed for one user who wants a premium daily execution dashboard for training, nutrition, hydration, supplements, and progress trends without the friction of meal-by-meal calorie tracking.
 
@@ -35,6 +35,22 @@ Type-check:
 npm run typecheck
 ```
 
+Optional Supabase env:
+
+1. Copy `.env.example` to `.env.local`
+2. Fill in:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+PHASE_APP_STATE_ID=primary
+```
+
+3. Run the SQL in [supabase/migrations/001_phase_app_state.sql](C:\Users\niedd\OneDrive\Documenti\My Fitness app\supabase\migrations\001_phase_app_state.sql)
+
+Without these values, the app stays fully local-first.
+
 ## Commands
 
 - `npm run dev`: starts the Next.js dev server
@@ -64,6 +80,8 @@ Main structure:
 - `src/lib/seed.ts`: seeded demo data
 - `src/lib/store.tsx`: local-first state container and persistence
 - `src/lib/insights.ts`: deterministic rules-based insight engine
+- `src/lib/supabase/*`: Supabase config and client/server helpers
+- `src/app/api/app-state/route.ts`: server route used for remote state sync
 - `public/manifest.webmanifest` and `public/sw.js`: PWA setup
 
 Storage model:
@@ -92,19 +110,24 @@ Implemented MVP areas:
 - settings for targets, app naming, supplements, import/export, and reset
 - seeded workout templates and workout logbook guidance
 - local persistence via `localStorage`
+- optional Supabase backup/sync via a server route and JSON app-state table
 - installable PWA shell with offline-friendly cached core assets
 
 ## Tradeoffs
 
-- Persistence uses `localStorage` for simplicity and zero backend setup. For larger datasets, IndexedDB would be a better next step.
+- Persistence stays local-first by default. Supabase is layered in as an optional remote sync target so the app still works with zero backend setup.
 - The insight engine is deterministic and rules-based by design. This keeps the MVP useful and trustworthy without pretending to be AI.
 - Photos are stored as data URLs locally, which is fine for MVP but not ideal for long-term storage footprint.
+- The current Supabase integration stores the whole app state as a single JSON document in `app_state`. This keeps migration simple, but finer-grained tables are the better next step for collaboration, history, and more selective syncing.
+- The included SQL policy is intentionally permissive for a one-user MVP with no auth yet. Before any public deployment, add Supabase Auth and tighten RLS.
 - The current navigation is single-screen client state rather than route-per-tab to keep the phone flow fast and reduce complexity.
 - shadcn/ui was approximated with typed reusable primitives instead of pulling the full CLI-generated component set, which keeps the codebase lighter in this MVP scaffold.
 
 ## Future Improvements
 
 - swap storage from `localStorage` to IndexedDB or Supabase
+- replace whole-document sync with normalized Supabase tables and row-level updates
+- add Supabase Auth before any multi-device public deployment
 - add real workout session editing with per-set input and progression suggestions
 - add recurring weekly schedule presets and richer month planning
 - add better offline caching and update handling

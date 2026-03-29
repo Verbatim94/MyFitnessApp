@@ -2,11 +2,13 @@
 
 import { Download, RotateCcw, Upload } from "lucide-react";
 import type { ChangeEvent } from "react";
-import { Card, FieldLabel, Input, PrimaryButton, SectionHeader } from "@/components/ui";
+import { Card, FieldLabel, Input, Pill, PrimaryButton, SectionHeader } from "@/components/ui";
 import { exportAppData, useAppStore } from "@/lib/store";
+import { isSupabaseClientConfigured } from "@/lib/supabase/config";
+import { formatDateLabel } from "@/lib/utils";
 
 export function SettingsScreen() {
-  const { data, dispatch } = useAppStore();
+  const { data, dispatch, syncError, syncState, lastSyncedAt } = useAppStore();
 
   const onImport = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -24,6 +26,28 @@ export function SettingsScreen() {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <SectionHeader title="Supabase sync" caption="Optional cloud backup on top of local-first storage." />
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Pill tone={syncState === "synced" ? "success" : syncState === "error" ? "warning" : "default"}>
+              {syncState}
+            </Pill>
+            <span className="text-sm text-muted-foreground">
+              {isSupabaseClientConfigured()
+                ? "Client env detected"
+                : "Add Supabase env values to enable remote sync"}
+            </span>
+          </div>
+          <div className="rounded-3xl border border-white/8 bg-card-2/60 p-4 text-sm text-muted-foreground">
+            {lastSyncedAt
+              ? `Last remote sync: ${formatDateLabel(lastSyncedAt)}`
+              : "No remote sync completed yet."}
+            {syncError ? ` Error: ${syncError}` : ""}
+          </div>
+        </div>
+      </Card>
+
       <Card>
         <SectionHeader title="Profile and phase" caption="Make the app easy to rename later." />
         <div className="space-y-4">

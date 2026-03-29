@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { Dispatch, ReactNode } from "react";
 import { createSeedData } from "@/lib/seed";
+import { isSupabaseClientConfigured } from "@/lib/supabase/config";
 import type {
   AppData,
   CalendarDay,
@@ -43,6 +44,9 @@ interface AppState {
 interface AppStore extends AppState {
   todayKey: string;
   dispatch: Dispatch<AppAction>;
+  syncState: "disabled" | "loading" | "syncing" | "synced" | "error";
+  lastSyncedAt: string | null;
+  syncError: string | null;
   getCalendarDay: (date: string) => CalendarDay | undefined;
   getDailyLog: (date: string) => DailyLog | undefined;
   getNutritionMode: (date: string) => NutritionMode;
@@ -179,6 +183,13 @@ const AppStoreContext = createContext<AppStore | null>(null);
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
+  const [syncState, setSyncState] = useState<AppStore["syncState"]>(
+    isSupabaseClientConfigured() ? "loading" : "disabled"
+  );
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const hasLoadedRemoteRef = useRef(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, dispatch] = useReducer(reducer, {
     data: createSeedData(),
     activeTab: "today" as TabKey
@@ -198,8 +209,82 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!hydrated || !isSupabaseClientConfigured() || hasLoadedRemoteRef.current) return;
+
+    hasLoadedRemoteRef.current = true;
+
+    const loadRemoteState = async () => {
+      setSyncState("loading");
+      try {
+        const response = await fetch("/api/app-state", { cache: "no-store" });
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error ?? "Remote load failed.");
+        }
+
+        const payload = (await response.json()) as { data: AppData | null; updatedAt: string | null };
+        if (payload.data) {
+          dispatch({ type: "import-data", payload: payload.data });
+        }
+        setLastSyncedAt(payload.updatedAt);
+        setSyncError(null);
+        setSyncState("synced");
+      } catch (error) {
+        setSyncError(error instanceof Error ? error.message : "Remote load failed.");
+        setSyncState("error");
+      }
+    };
+
+    void loadRemoteState();
+  }, [hydrated]);
+
+  useEffect(() => {
     if (!hydrated) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+  }, [hydrated, state.data]);
+
+  useEffect(() => {
+    if (!hydrated || !isSupabaseClientConfigured() || !hasLoadedRemoteRef.current) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      const syncRemoteState = async () => {
+        setSyncState("syncing");
+        try {
+          const response = await fetch("/api/app-state", {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ data: state.data })
+          });
+
+          if (!response.ok) {
+            const body = (await response.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(body?.error ?? "Remote sync failed.");
+          }
+
+          const payload = (await response.json()) as { updatedAt: string | null };
+          setLastSyncedAt(payload.updatedAt);
+          setSyncError(null);
+          setSyncState("synced");
+        } catch (error) {
+          setSyncError(error instanceof Error ? error.message : "Remote sync failed.");
+          setSyncState("error");
+        }
+      };
+
+      void syncRemoteState();
+    }, 600);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [hydrated, state.data]);
 
   const todayKey = toDateKey(new Date());
@@ -221,13 +306,16 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       ...state,
       todayKey,
       dispatch,
+      syncState,
+      lastSyncedAt,
+      syncError,
       getCalendarDay,
       getDailyLog,
       getNutritionMode,
       getTargetsForDate,
       getWeekDays
     };
-  }, [state, todayKey]);
+  }, [lastSyncedAt, state, syncError, syncState, todayKey]);
 
   return <AppStoreContext.Provider value={store}>{children}</AppStoreContext.Provider>;
 }
